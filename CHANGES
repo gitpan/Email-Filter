@@ -1,5 +1,14 @@
 Changes file for Email::Filter
 
+1.02    2004-11-06
+
+  - pipe() is now safe against IPC::Run::run() death, in the
+    event of improper input.
+  - Docs for pipe() now express proper input.
+  - Dependency updates.
+  - Doc fixes.
+  - Author update.
+
 1.01	Tuesday 29th June, 2004
 	discard any From_ line before we hand it to Email::Simple
 	pod fixes

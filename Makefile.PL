@@ -4,10 +4,11 @@ WriteMakefile(
     NAME          => 'Email::Filter',
     VERSION_FROM  => 'lib/Email/Filter.pm',
     EXE_FILES     => [],
-    PREREQ_PM => {
-        Email::Simple => "1.1",
-        Email::LocalDelivery => 0.04,
-        IPC::Run => 0,
-        Class::Trigger => 0,
-    },
+               PREREQ_PM     => {
+                                 'Class::Trigger' => '0.08',
+                                 'Email::LocalDelivery' => '0.07',
+                                 'Email::Simple' => '1.91',
+                                 'IPC::Run' => '0.77',
+                                 'Test::More' => '0.47',
+                                },
 );

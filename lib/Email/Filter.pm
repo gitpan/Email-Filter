@@ -1,17 +1,17 @@
 package Email::Filter;
+# $Id: Filter.pm,v 1.7 2004/11/06 19:00:31 cwest Exp $
+use strict;
+
 use Email::LocalDelivery;
 use Email::Simple;
-
 use Class::Trigger;
 use IPC::Run qw(run);
-
-use strict;
 
 use constant DELIVERED => 0;
 use constant TEMPFAIL  => 75;
 use constant REJECTED  => 100;
 
-$Email::Filter::VERSION = "1.01";
+$Email::Filter::VERSION = "1.02";
 
 =head1 NAME
 
@@ -21,9 +21,9 @@ Email::Filter - Library for creating easy email filters
 
     use Email::Filter;
     my $mail = Email::Filter->new(emergency => "~/emergency_mbox");
-    $mail->pipe("listgate p5p")            if $mail->from =~ /perl5-porters/;
+    $mail->pipe("listgate", "p5p")         if $mail->from =~ /perl5-porters/;
     $mail->accept("perl")                  if $mail->from =~ /perl/;
-    $mail->reject("We do not accept spam") if $mail->rblcheck();
+    $mail->reject("We do not accept spam") if $mail->subject =~ /enlarge/;
     $mail->ignore                          if $mail->subject =~ /boring/i;
     ...
     $mail->exit(0);
@@ -297,20 +297,22 @@ sub reject {
 
 =head2 pipe
 
-    $mail->pipe('sendmail foo@bar.com');
+    $mail->pipe(qw[sendmail foo\@bar.com]);
 
-Pipes the mail to an external program, returning the standard output from
-that program if C<exit> has been set to false. This allows you to do things like
+Pipes the mail to an external program, returning the standard output
+from that program if C<exit> has been set to false. The program and each
+of its arguments must be supplied in a list. This allows you to do
+things like:
 
     $mail->exit(0);
     $mail->simple(Email::Simple->new($mail->pipe("spamassassin")));
     $mail->exit(1);
 
-in the absence of decent C<Mail::SpamAssassin> support. (Coming soon...)
+in the absence of decent C<Mail::SpamAssassin> support.
 
 If the program returns a non-zero exit code, the behaviour is dependent
 on the status of the C<exit> flag. If this flag is set to true (the
-default), then C<Email::Filter> tries to recover. (See L</Error Recovery>)
+default), then C<Email::Filter> tries to recover. (See L</ERROR RECOVERY>)
 If not, nothing is returned.
 
 =cut
@@ -320,7 +322,7 @@ sub pipe {
     my $stdout;
     my $string = $self->simple->as_string;
     $self->call_trigger("pipe");
-    if (run(\@program, \$string, \$stdout)) {
+    if (eval {run(\@program, \$string, \$stdout)} ) {
         $self->done_ok;
         return $stdout;
     }
@@ -339,7 +341,13 @@ any version.
 
 =head1 AUTHOR
 
+Casey West, C<casey@geeknest.com>
+
 Simon Cozens, C<simon@cpan.org>
+
+=head1 SEE ALSO
+
+http://pep,kwiki.org
 
 =cut
 

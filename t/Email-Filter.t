@@ -1,5 +1,6 @@
 use Test::More 'no_plan';
 use strict;
+$^W = 1;
 use File::Temp qw(tmpnam);
 use_ok("Email::Filter");
 
@@ -22,3 +23,6 @@ unlink $where;
 
 my $y = $x->pipe("$^X", "-pe1"); # A sort of portable /bin/cat
 is($y, $mail, "pipe works");
+
+my $z = $x->pipe("$^X -pe1");
+is $z, undef, 'pipe failed for broken input';
