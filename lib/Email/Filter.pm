@@ -11,7 +11,7 @@ use constant DELIVERED => 0;
 use constant TEMPFAIL  => 75;
 use constant REJECTED  => 100;
 
-$Email::Filter::VERSION = "1.0";
+$Email::Filter::VERSION = "1.01";
 
 =head1 NAME
 
@@ -26,10 +26,10 @@ Email::Filter - Library for creating easy email filters
     $mail->reject("We do not accept spam") if $mail->rblcheck();
     $mail->ignore                          if $mail->subject =~ /boring/i;
     ...
-    $mail->exit(0); 
-    $mail->accept("~/Mail/Archive/backup"); 
+    $mail->exit(0);
+    $mail->accept("~/Mail/Archive/backup");
     $mail->exit(1);
-    $mail->accept() 
+    $mail->accept()
 
 =head1 DESCRIPTION
 
@@ -43,7 +43,7 @@ describing how your mail should be filtered.
 Users of C<Mail::Audit> will note that this class is much leaner than
 the one it replaces. For instance, it has no logging; the concept of
 "local options" has gone away, and so on. This is a deliberate design
-decision to make the class as simple and maintainable as possible. 
+decision to make the class as simple and maintainable as possible.
 
 To make up for this, however, C<Email::Filter> contains a trigger
 mechanism provided by L<Class::Trigger>, to allow you to add your own
@@ -79,7 +79,7 @@ sub fail_badly {
     my $self = shift;
     $self->{giveup} = 1; # Don't get caught by DESTROY
     exit TEMPFAIL unless $self->{noexit};
-    warn "Message ".$self->simple->header("Message-ID"). 
+    warn "Message ".$self->simple->header("Message-ID").
           "was never handled properly\n";
 }
 
@@ -106,7 +106,7 @@ sub DESTROY {
     Email::Filter->new();                # Read from STDIN
     Email::Filter->new(data => $string); # Read from string
 
-    Email::Filter->new(emergency => "~simon/urgh"); 
+    Email::Filter->new(emergency => "~simon/urgh");
     # Deliver here in case of error
 
 This takes an email either from standard input, the usual case when
@@ -139,12 +139,13 @@ instantiated.
 sub new {
     my $class = shift;
     my %stuff = @_;
-    my $obj = {};
     my $data;
 
     {
-    local $/; 
+    local $/;
     $data = exists $stuff{data} ? $stuff{data} : scalar <STDIN>;
+    # shave any leading From_ line
+    $data =~ s/^From .*?[\x0a\x0d]//
     }
 
     my $obj = bless {
@@ -176,7 +177,7 @@ sub noexit { $_[0]->{noexit} = $_[1]; }
 
     $mail->simple();
 
-Gets and sets the underlying C<Email::Simple> object for this filter; 
+Gets and sets the underlying C<Email::Simple> object for this filter;
 see L<Email::Simple> for more details.
 
 =cut
@@ -191,7 +192,7 @@ sub simple {
 
     $mail->header("X-Something")
 
-Returns the specified mail headers. In scalar context, returns the 
+Returns the specified mail headers. In scalar context, returns the
 first such header; in list context, returns them all.
 
 =cut
@@ -209,10 +210,15 @@ Returns the body text of the email
 sub body { $_[0]->simple->body }
 
 =head2 from
+
 =head2 to
+
 =head2 cc
+
 =head2 bcc
+
 =head2 subject
+
 =head2 received
 
     $mail-><header>()
@@ -221,7 +227,7 @@ Convenience accessors for C<header($header)>
 
 =cut
 
-{ no strict 'refs'; 
+{ no strict 'refs';
 for my $head (qw(From To CC Bcc Subject Received)) {
     *{lc $head} = sub { $_[0]->header($head) }
 }
@@ -236,7 +242,7 @@ This method provides the "ignore" trigger.
 
 =cut
 
-sub ignore { 
+sub ignore {
     $_[0]->call_trigger("ignore");
     $_[0]->done_ok;
 }
@@ -246,7 +252,7 @@ sub ignore {
     $mail->accept();
     $mail->accept(@where);
 
-Accepts the mail into a given mailbox or mailboxes. 
+Accepts the mail into a given mailbox or mailboxes.
 Unix C<~/> and C<~user/> prefices are resolved. If no mailbox is given,
 the default is determined according to L<Email::LocalDelivery>:
 C<$ENV{MAIL}>, F</var/spool/mail/you>, F</var/mail/you>, or
@@ -304,7 +310,7 @@ in the absence of decent C<Mail::SpamAssassin> support. (Coming soon...)
 
 If the program returns a non-zero exit code, the behaviour is dependent
 on the status of the C<exit> flag. If this flag is set to true (the
-default), then C<Email::Filter> tries to recover. (See L</Error Recovery>) 
+default), then C<Email::Filter> tries to recover. (See L</Error Recovery>)
 If not, nothing is returned.
 
 =cut
