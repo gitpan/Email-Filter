@@ -140,17 +140,18 @@ METHODS
     This calls the "reject" trigger. "exit" has no effect here.
 
   pipe
-        $mail->pipe('sendmail foo@bar.com');
+        $mail->pipe(qw[sendmail foo\@bar.com]);
 
     Pipes the mail to an external program, returning the standard output
-    from that program if "exit" has been set to false. This allows you to do
-    things like
+    from that program if "exit" has been set to false. The program and each
+    of its arguments must be supplied in a list. This allows you to do
+    things like:
 
         $mail->exit(0);
         $mail->simple(Email::Simple->new($mail->pipe("spamassassin")));
         $mail->exit(1);
 
-    in the absence of decent "Mail::SpamAssassin" support. (Coming soon...)
+    in the absence of decent "Mail::SpamAssassin" support.
 
     If the program returns a non-zero exit code, the behaviour is dependent
     on the status of the "exit" flag. If this flag is set to true (the
@@ -170,5 +171,5 @@ AUTHOR
     Simon Cozens, "simon@cpan.org"
 
 SEE ALSO
-    http://pep,kwiki.org
+    http://emailproject.perl.org/wiki/Email::Filter
 

@@ -1,5 +1,4 @@
 package Email::Filter;
-# $Id: Filter.pm,v 1.7 2004/11/06 19:00:31 cwest Exp $
 use strict;
 
 use Email::LocalDelivery;
@@ -11,7 +10,7 @@ use constant DELIVERED => 0;
 use constant TEMPFAIL  => 75;
 use constant REJECTED  => 100;
 
-$Email::Filter::VERSION = "1.02";
+$Email::Filter::VERSION = "1.03";
 
 =head1 NAME
 
@@ -142,10 +141,10 @@ sub new {
     my $data;
 
     {
-    local $/;
-    $data = exists $stuff{data} ? $stuff{data} : scalar <STDIN>;
-    # shave any leading From_ line
-    $data =~ s/^From .*?[\x0a\x0d]//
+      local $/;
+      $data = exists $stuff{data} ? $stuff{data} : scalar <STDIN>;
+      # shave any leading From_ line
+      $data =~ s/^From .*?[\x0a\x0d]//
     }
 
     my $obj = bless {
@@ -330,6 +329,12 @@ sub pipe {
     return;
 }
 
+=head1 PERL EMAIL PROJECT
+
+This module is maintained by the Perl Email Project
+
+  L<http://emailproject.perl.org/wiki/Email::Filter>
+
 =head1 COPYRIGHT
 
     Copyright 2003, Simon Cozens <simon@cpan.org>
@@ -344,10 +349,6 @@ any version.
 Casey West, C<casey@geeknest.com>
 
 Simon Cozens, C<simon@cpan.org>
-
-=head1 SEE ALSO
-
-http://pep,kwiki.org
 
 =cut
 
