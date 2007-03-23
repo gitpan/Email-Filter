@@ -10,7 +10,7 @@ use constant DELIVERED => 0;
 use constant TEMPFAIL  => 75;
 use constant REJECTED  => 100;
 
-$Email::Filter::VERSION = "1.03";
+$Email::Filter::VERSION = "1.031";
 
 =head1 NAME
 
@@ -48,7 +48,7 @@ To make up for this, however, C<Email::Filter> contains a trigger
 mechanism provided by L<Class::Trigger>, to allow you to add your own
 functionality. You do this by calling the C<add_trigger> method:
 
-    Email::Audit->add_trigger( after_accept => \&log_accept );
+    Email::Filter->add_trigger( after_accept => \&log_accept );
 
 Hopefully this will also help subclassers.
 
@@ -333,7 +333,7 @@ sub pipe {
 
 This module is maintained by the Perl Email Project
 
-  L<http://emailproject.perl.org/wiki/Email::Filter>
+L<http://emailproject.perl.org/wiki/Email::Filter>
 
 =head1 COPYRIGHT
 

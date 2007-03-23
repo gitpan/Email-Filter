@@ -1,15 +1,16 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Email-Filter
-version:      1.03
-version_from: lib/Email/Filter.pm
-installdirs:  site
-requires:
+--- #YAML:1.0
+name:                Email-Filter
+version:             1.031
+abstract:            ~
+license:             perl
+generated_by:        ExtUtils::MakeMaker version 6.32
+distribution_type:   module
+requires:     
     Class::Trigger:                0.08
     Email::LocalDelivery:          0.07
     Email::Simple:                 1.91
     IPC::Run:                      0.77
     Test::More:                    0.47
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
+    version: 1.2
