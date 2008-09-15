@@ -1,9 +1,10 @@
 --- #YAML:1.0
 name:                Email-Filter
-version:             1.031
+version:             1.032
 abstract:            ~
 license:             perl
-generated_by:        ExtUtils::MakeMaker version 6.32
+author:              ~
+generated_by:        ExtUtils::MakeMaker version 6.44
 distribution_type:   module
 requires:     
     Class::Trigger:                0.08
@@ -12,5 +13,5 @@ requires:
     IPC::Run:                      0.77
     Test::More:                    0.47
 meta-spec:
-    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
-    version: 1.2
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
