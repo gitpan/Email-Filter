@@ -1,5 +1,9 @@
-package Email::Filter;
 use strict;
+package Email::Filter;
+{
+  $Email::Filter::VERSION = '1.033';
+}
+# ABSTRACT: Library for creating easy email filters
 
 use Email::LocalDelivery;
 use Email::Simple;
@@ -10,63 +14,6 @@ use constant DELIVERED => 0;
 use constant TEMPFAIL  => 75;
 use constant REJECTED  => 100;
 
-$Email::Filter::VERSION = "1.032";
-
-=head1 NAME
-
-Email::Filter - Library for creating easy email filters
-
-=head1 SYNOPSIS
-
-    use Email::Filter;
-    my $mail = Email::Filter->new(emergency => "~/emergency_mbox");
-    $mail->pipe("listgate", "p5p")         if $mail->from =~ /perl5-porters/;
-    $mail->accept("perl")                  if $mail->from =~ /perl/;
-    $mail->reject("We do not accept spam") if $mail->subject =~ /enlarge/;
-    $mail->ignore                          if $mail->subject =~ /boring/i;
-    ...
-    $mail->exit(0);
-    $mail->accept("~/Mail/Archive/backup");
-    $mail->exit(1);
-    $mail->accept()
-
-=head1 DESCRIPTION
-
-This is another module produced by the "Perl Email Project", a reaction
-against the complexity and increasing bugginess of the "Mail::*"
-modules. It replaces C<Mail::Audit>, and allows you to write programs
-describing how your mail should be filtered.
-
-=head1 TRIGGERS
-
-Users of C<Mail::Audit> will note that this class is much leaner than
-the one it replaces. For instance, it has no logging; the concept of
-"local options" has gone away, and so on. This is a deliberate design
-decision to make the class as simple and maintainable as possible.
-
-To make up for this, however, C<Email::Filter> contains a trigger
-mechanism provided by L<Class::Trigger>, to allow you to add your own
-functionality. You do this by calling the C<add_trigger> method:
-
-    Email::Filter->add_trigger( after_accept => \&log_accept );
-
-Hopefully this will also help subclassers.
-
-The methods below will list which triggers they provide.
-
-=head1 ERROR RECOVERY
-
-If something bad happens during the C<accept> or C<pipe> method, or
-the C<Email::Filter> object gets destroyed without being properly
-handled, then a fail-safe error recovery process is called. This first
-checks for the existence of the C<emergency> setting, and tries to
-deliver to that mailbox. If there is no emergency mailbox or that
-delivery failed, then the program will either exit with a temporary
-failure error code, queuing the mail for redelivery later, or produce a
-warning to standard error, depending on the status of the C<exit>
-setting.
-
-=cut
 
 sub done_ok {
     my $self = shift;
@@ -99,6 +46,134 @@ sub DESTROY {
            or !$self->{emergency}; # Not much we can do.
     $self->fail_gracefully();
 }
+
+
+sub new {
+    my $class = shift;
+    my %stuff = @_;
+    my $data;
+
+    {
+      local $/;
+      $data = exists $stuff{data} ? $stuff{data} : scalar <STDIN>;
+      # shave any leading From_ line
+      $data =~ s/^From .*?[\x0a\x0d]//
+    }
+
+    my $obj = bless {
+        mail       => Email::Simple->new($data),
+        emergency  => $stuff{emergency},
+        noexit     => ($stuff{noexit} || 0)
+    }, $class;
+    $obj->call_trigger("new");
+    return $obj;
+}
+
+
+sub exit { $_[0]->{noexit} = !$_[1]; }
+sub noexit { $_[0]->{noexit} = $_[1]; }
+
+
+sub simple {
+    my ($filter, $mail) = @_;
+    if ($mail) { $filter->{mail} = $mail; }
+    return $filter->{mail};
+}
+
+
+sub header { my ($mail, $head) = @_; $mail->simple->header($head); }
+
+
+sub body { $_[0]->simple->body }
+
+
+{   no strict 'refs';
+    for my $head (qw(From To CC Bcc Subject Received)) {
+        *{lc $head} = sub { $_[0]->header($head) }
+    }
+}
+
+
+sub ignore {
+    $_[0]->call_trigger("ignore");
+    $_[0]->done_ok;
+}
+
+
+sub accept {
+    my ($self, @where) = @_;
+    $self->call_trigger("before_accept", \@where);
+    # Unparsing and reparsing is so fast we prefer to do that in order
+    # to keep to LocalDelivery's clean interface.
+    if (Email::LocalDelivery->deliver($self->simple->as_string, @where)) {
+        $self->call_trigger("after_accept", \@where);
+        $self->done_ok;
+    } else {
+        $self->fail_gracefully();
+    }
+}
+
+
+sub reject {
+    my $self = shift;
+    $self->call_trigger("reject");
+    $self->{delivered} = 1;
+    $! = REJECTED; die @_,"\n";
+}
+
+
+sub pipe {
+    my ($self, @program) = @_;
+    my $arg;
+    $arg = (ref $program[-1] eq 'HASH') ? (pop @program) : {};
+
+    my $stdout;
+
+    my $string = $arg->{header_only}
+               ? $self->simple->header_obj->as_string
+               : $self->simple->as_string;
+
+    $self->call_trigger("pipe", \@program, $arg);
+    if (eval {run(\@program, \$string, \$stdout)} ) {
+        $self->done_ok;
+        return $stdout;
+    }
+    $self->fail_gracefully() unless $self->{noexit};
+    return;
+}
+
+1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+Email::Filter - Library for creating easy email filters
+
+=head1 VERSION
+
+version 1.033
+
+=head1 SYNOPSIS
+
+    use Email::Filter;
+    my $mail = Email::Filter->new(emergency => "~/emergency_mbox");
+    $mail->pipe("listgate", "p5p")         if $mail->from =~ /perl5-porters/;
+    $mail->accept("perl")                  if $mail->from =~ /perl/;
+    $mail->reject("We do not accept spam") if $mail->subject =~ /enlarge/;
+    $mail->ignore                          if $mail->subject =~ /boring/i;
+    ...
+    $mail->exit(0);
+    $mail->accept("~/Mail/Archive/backup");
+    $mail->exit(1);
+    $mail->accept()
+
+=head1 DESCRIPTION
+
+This module replaces C<procmail> or C<Mail::Audit>, and allows you to write
+programs describing how your mail should be filtered.
 
 =head1 METHODS
 
@@ -135,29 +210,6 @@ neat is that?
 This method provides the C<new> trigger, called once an object is
 instantiated.
 
-=cut
-
-sub new {
-    my $class = shift;
-    my %stuff = @_;
-    my $data;
-
-    {
-      local $/;
-      $data = exists $stuff{data} ? $stuff{data} : scalar <STDIN>;
-      # shave any leading From_ line
-      $data =~ s/^From .*?[\x0a\x0d]//
-    }
-
-    my $obj = bless {
-        mail       => Email::Simple->new($data),
-        emergency  => $stuff{emergency},
-        noexit     => ($stuff{noexit} || 0)
-    }, $class;
-    $obj->call_trigger("new");
-    return $obj;
-}
-
 =head2 exit
 
     $mail->exit(1|0);
@@ -169,25 +221,12 @@ The sense-inverted 'noexit' method is also provided for backwards
 compatibility with C<Mail::Audit>, but setting "noexit" to "yes" got a
 bit mind-bending after a while.
 
-=cut
-
-sub exit { $_[0]->{noexit} = !$_[1]; }
-sub noexit { $_[0]->{noexit} = $_[1]; }
-
 =head2 simple
 
     $mail->simple();
 
 Gets and sets the underlying C<Email::Simple> object for this filter;
 see L<Email::Simple> for more details.
-
-=cut
-
-sub simple {
-    my ($filter, $mail) = @_;
-    if ($mail) { $filter->{mail} = $mail; }
-    return $filter->{mail};
-}
 
 =head2 header
 
@@ -196,19 +235,11 @@ sub simple {
 Returns the specified mail headers. In scalar context, returns the
 first such header; in list context, returns them all.
 
-=cut
-
-sub header { my ($mail, $head) = @_; $mail->simple->header($head); }
-
 =head2 body
 
     $mail->body()
 
 Returns the body text of the email
-
-=cut
-
-sub body { $_[0]->simple->body }
 
 =head2 from
 
@@ -226,27 +257,12 @@ sub body { $_[0]->simple->body }
 
 Convenience accessors for C<header($header)>
 
-=cut
-
-{ no strict 'refs';
-for my $head (qw(From To CC Bcc Subject Received)) {
-    *{lc $head} = sub { $_[0]->header($head) }
-}
-}
-
 =head2 ignore
 
 Ignores this mail, exiting unconditionally unless C<exit> has been set
 to false.
 
 This method provides the "ignore" trigger.
-
-=cut
-
-sub ignore {
-    $_[0]->call_trigger("ignore");
-    $_[0]->done_ok;
-}
 
 =head2 accept
 
@@ -260,22 +276,8 @@ C<$ENV{MAIL}>, F</var/spool/mail/you>, F</var/mail/you>, or
 F<~you/Maildir/>.
 
 This provides the C<before_accept> and C<after_accept> triggers, and
-exits unless C<exit> has been set to false.
-
-=cut
-
-sub accept {
-    my ($self, @boxes) = @_;
-    $self->call_trigger("before_accept");
-    # Unparsing and reparsing is so fast we prefer to do that in order
-    # to keep to LocalDelivery's clean interface.
-    if (Email::LocalDelivery->deliver($self->simple->as_string, @boxes)) {
-        $self->call_trigger("after_accept");
-        $self->done_ok;
-    } else {
-        $self->fail_gracefully();
-    }
-}
+exits unless C<exit> has been set to false.  They are passed a reference to the
+C<@where> array.
 
 =head2 reject
 
@@ -286,15 +288,6 @@ as in a F<~/.forward> file) the mail will be bounced back to the sender as
 undeliverable. If a reason is given, this will be included in the bounce.
 
 This calls the C<reject> trigger. C<exit> has no effect here.
-
-=cut
-
-sub reject {
-    my $self = shift;
-    $self->call_trigger("reject");
-    $self->{delivered} = 1;
-    $! = REJECTED; die @_,"\n";
-}
 
 =head2 pipe
 
@@ -316,42 +309,64 @@ on the status of the C<exit> flag. If this flag is set to true (the
 default), then C<Email::Filter> tries to recover. (See L</ERROR RECOVERY>)
 If not, nothing is returned.
 
+If the last argument to C<pipe> is a reference to a hash, it is taken to
+contain parameters to modify how C<pipe> itself behaves.  The only useful
+parameter at this time is:
+
+  header_only - only pipe the header, not the body
+
+=head1 TRIGGERS
+
+Users of C<Mail::Audit> will note that this class is much leaner than
+the one it replaces. For instance, it has no logging; the concept of
+"local options" has gone away, and so on. This is a deliberate design
+decision to make the class as simple and maintainable as possible.
+
+To make up for this, however, C<Email::Filter> contains a trigger
+mechanism provided by L<Class::Trigger>, to allow you to add your own
+functionality. You do this by calling the C<add_trigger> method:
+
+    Email::Filter->add_trigger( after_accept => \&log_accept );
+
+Hopefully this will also help subclassers.
+
+The methods below will list which triggers they provide.
+
+=head1 ERROR RECOVERY
+
+If something bad happens during the C<accept> or C<pipe> method, or
+the C<Email::Filter> object gets destroyed without being properly
+handled, then a fail-safe error recovery process is called. This first
+checks for the existence of the C<emergency> setting, and tries to
+deliver to that mailbox. If there is no emergency mailbox or that
+delivery failed, then the program will either exit with a temporary
+failure error code, queuing the mail for redelivery later, or produce a
+warning to standard error, depending on the status of the C<exit>
+setting.
+
+=head1 AUTHORS
+
+=over 4
+
+=item *
+
+Simon Cozens
+
+=item *
+
+Casey West
+
+=item *
+
+Ricardo SIGNES <rjbs@cpan.org>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2003 by Simon Cozens.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
 =cut
-
-sub pipe {
-    my ($self, @program) = @_;
-    my $stdout;
-    my $string = $self->simple->as_string;
-    $self->call_trigger("pipe");
-    if (eval {run(\@program, \$string, \$stdout)} ) {
-        $self->done_ok;
-        return $stdout;
-    }
-    $self->fail_gracefully() unless $self->{noexit};
-    return;
-}
-
-=head1 PERL EMAIL PROJECT
-
-This module is maintained by the Perl Email Project
-
-L<http://emailproject.perl.org/wiki/Email::Filter>
-
-=head1 COPYRIGHT
-
-    Copyright 2003, Simon Cozens <simon@cpan.org>
-
-=head1 LICENSE
-
-You may use this module under the terms of the BSD, Artistic, or GPL licenses,
-any version.
-
-=head1 AUTHOR
-
-Casey West, C<casey@geeknest.com>
-
-Simon Cozens, C<simon@cpan.org>
-
-=cut
-
-1;
