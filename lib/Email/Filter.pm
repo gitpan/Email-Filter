@@ -1,7 +1,7 @@
 use strict;
 package Email::Filter;
 {
-  $Email::Filter::VERSION = '1.033';
+  $Email::Filter::VERSION = '1.034';
 }
 # ABSTRACT: Library for creating easy email filters
 
@@ -148,13 +148,15 @@ __END__
 
 =pod
 
+=encoding UTF-8
+
 =head1 NAME
 
 Email::Filter - Library for creating easy email filters
 
 =head1 VERSION
 
-version 1.033
+version 1.034
 
 =head1 SYNOPSIS
 
